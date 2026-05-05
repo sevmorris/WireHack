@@ -31,8 +31,8 @@ targets:
       properties:
         CFBundleName: URL2WAV
         CFBundleDisplayName: URL2WAV
-        CFBundleShortVersionString: "1.1.0"
-        CFBundleVersion: "110"
+        CFBundleShortVersionString: "1.2.0"
+        CFBundleVersion: "120"
         LSApplicationCategoryType: public.app-category.utilities
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
