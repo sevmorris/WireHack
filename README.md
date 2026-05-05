@@ -2,7 +2,7 @@
 ### Minimal yt-dlp wrapper for macOS
 
 <p align="center">
-  <a href="https://github.com/sevmorris/URL2WAV/releases/latest/download/URL2WAV-v1.0.0.dmg"><strong>Download Latest (DMG)</strong></a>
+  <a href="https://github.com/sevmorris/URL2WAV/releases/latest/download/URL2WAV-v1.1.0.dmg"><strong>Download Latest (DMG)</strong></a>
   ·
   <a href="https://github.com/sevmorris/URL2WAV/issues">Report Bug</a>
 </p>
