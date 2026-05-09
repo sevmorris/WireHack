@@ -36,13 +36,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		3458025E5B7D8C2EF4D5A39A /* URL2WAV */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = URL2WAV;
-			sourceTree = "<group>";
-		};
 		A9B14A54463BE5D28A295764 /* WireHack */ = {
 			isa = PBXGroup;
 			children = (
@@ -54,7 +47,6 @@
 				5A4D0841C116B8C5F6E75A5D /* WireHackApp.swift */,
 				C1E44F29148EA392A80D1437 /* YTDLPService.swift */,
 				AAE5239E608D452A7CB635B4 /* Services */,
-				3458025E5B7D8C2EF4D5A39A /* URL2WAV */,
 			);
 			path = WireHack;
 			sourceTree = "<group>";
