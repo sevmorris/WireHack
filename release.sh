@@ -154,9 +154,14 @@ ok "DMG contains $DMG_VERSION"
 # ── Tag and push ──────────────────────────────────────────────────────────────
 step "Tagging and pushing"
 git tag "$TAG"
-git push
-git push origin "$TAG"
-ok "Pushed $TAG"
+# Resolve the tracked remote/branch so this works from any branch (e.g. a
+# worktree branch whose name differs from its upstream).
+UPSTREAM=$(git rev-parse --abbrev-ref '@{upstream}')
+REMOTE="${UPSTREAM%%/*}"
+BRANCH="${UPSTREAM#*/}"
+git push "$REMOTE" "HEAD:$BRANCH"
+git push "$REMOTE" "$TAG"
+ok "Pushed $TAG to $REMOTE/$BRANCH"
 
 # ── GitHub release ────────────────────────────────────────────────────────────
 step "Creating GitHub release"
