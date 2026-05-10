@@ -2,7 +2,7 @@
 ### Minimal yt-dlp wrapper for macOS
 
 <p align="center">
-  <a href="https://github.com/sevmorris/WireHack/releases/latest/download/WireHack-v1.6.0.dmg"><strong>Download Latest (DMG)</strong></a>
+  <a href="https://github.com/sevmorris/WireHack/releases/latest/download/WireHack-v1.7.0.dmg"><strong>Download Latest (DMG)</strong></a>
   ·
   <a href="https://github.com/sevmorris/WireHack/issues">Report Bug</a>
 </p>
