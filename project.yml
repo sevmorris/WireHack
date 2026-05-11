@@ -31,6 +31,6 @@ targets:
       properties:
         CFBundleName: WireHack
         CFBundleDisplayName: WireHack
-        CFBundleShortVersionString: "1.8.1"
-        CFBundleVersion: "10801"
+        CFBundleShortVersionString: "1.8.2"
+        CFBundleVersion: "10802"
         LSApplicationCategoryType: public.app-category.utilities
