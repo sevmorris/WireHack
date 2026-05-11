@@ -23,9 +23,17 @@ final class ContentViewModel {
         didSet { UserDefaults.standard.set(currentNumber, forKey: Self.currentNumberKey) }
     }
 
+    var manifestEnabled: Bool {
+        didSet { UserDefaults.standard.set(manifestEnabled, forKey: Self.manifestKey) }
+    }
+
+    /// Per-clip free-text — not persisted, cleared after each successful download.
+    var notes: String = ""
+
     private static let outputKey = "outputDirectoryPath"
     private static let numberingKey = "numberingEnabled"
     private static let currentNumberKey = "currentNumber"
+    private static let manifestKey = "manifestEnabled"
     private var downloadTask: Task<Void, Never>?
 
     init() {
@@ -33,6 +41,7 @@ final class ContentViewModel {
         numberingEnabled = UserDefaults.standard.bool(forKey: Self.numberingKey)
         let savedNumber = UserDefaults.standard.integer(forKey: Self.currentNumberKey)
         currentNumber = savedNumber > 0 ? savedNumber : 1
+        manifestEnabled = UserDefaults.standard.bool(forKey: Self.manifestKey)
     }
 
     var outputTemplate: String {
@@ -40,6 +49,35 @@ final class ContentViewModel {
             return String(format: "%02d - ", currentNumber) + "%(title)s.%(ext)s"
         }
         return "%(title)s.%(ext)s"
+    }
+
+    /// Appends a three-line entry to `clip-list-YYYY-MM-DD.txt` in `directory`.
+    /// Empty notes are written as a blank line so the entry's row structure
+    /// stays predictable.
+    private static func appendManifest(
+        filepath: String,
+        notes: String,
+        sourceURL: String,
+        in directory: URL
+    ) throws {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateStamp = formatter.string(from: Date())
+        let manifestURL = directory.appendingPathComponent("clip-list-\(dateStamp).txt")
+
+        let filename = URL(fileURLWithPath: filepath).lastPathComponent
+        let entry = "\(filename)\n\(notes)\n\(sourceURL)\n\n"
+        guard let data = entry.data(using: .utf8) else { return }
+
+        if FileManager.default.fileExists(atPath: manifestURL.path) {
+            let handle = try FileHandle(forWritingTo: manifestURL)
+            defer { try? handle.close() }
+            try handle.seekToEnd()
+            try handle.write(contentsOf: data)
+        } else {
+            try data.write(to: manifestURL, options: .atomic)
+        }
     }
 
     var outputDirectory: URL? {
@@ -99,9 +137,12 @@ final class ContentViewModel {
 
         let format = selectedFormat
         let destPath = outputDirectory?.path
+        let destURL = outputDirectory
         let destLabel = outputDirectory?.lastPathComponent ?? "destination"
         let template = outputTemplate
         let wasNumbering = numberingEnabled
+        let manifestOn = manifestEnabled
+        let notesSnapshot = notes
 
         downloadTask = Task {
             defer {
@@ -109,7 +150,7 @@ final class ContentViewModel {
                 downloadTask = nil
             }
             do {
-                try await YTDLPService.shared.downloadMedia(
+                let filepath = try await YTDLPService.shared.downloadMedia(
                     url: trimmed,
                     format: format,
                     downloadFolder: destPath,
@@ -121,6 +162,19 @@ final class ContentViewModel {
                 url = ""
                 if wasNumbering {
                     currentNumber = min(currentNumber + 1, 9999)
+                }
+                if manifestOn, let filepath, let destURL {
+                    do {
+                        try Self.appendManifest(
+                            filepath: filepath,
+                            notes: notesSnapshot,
+                            sourceURL: trimmed,
+                            in: destURL
+                        )
+                        notes = ""
+                    } catch {
+                        status = "Saved — manifest write failed: \(error.localizedDescription)"
+                    }
                 }
             } catch is CancellationError {
                 status = "Cancelled"

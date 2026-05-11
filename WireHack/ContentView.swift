@@ -29,6 +29,28 @@ struct ContentView: View {
                         .disabled(viewModel.isDownloading)
                 }
 
+                // Notes (only when manifest is on)
+                if viewModel.manifestEnabled {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Notes")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.7))
+
+                        TextField("e.g. :30 to :12", text: $viewModel.notes, axis: .vertical)
+                            .lineLimit(1...4)
+                            .textFieldStyle(.plain)
+                            .padding(12)
+                            .background(.white.opacity(0.95))
+                            .foregroundStyle(.black)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(.white.opacity(0.25), lineWidth: 1)
+                            )
+                            .disabled(viewModel.isDownloading)
+                    }
+                }
+
                 // Format Selector
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Format")
@@ -63,6 +85,24 @@ struct ContentView: View {
                         }
                         .disabled(viewModel.isDownloading || !viewModel.numberingEnabled)
                         .opacity(viewModel.numberingEnabled ? 1 : 0.5)
+                    }
+                    .padding(8)
+                    .background(.white.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+
+                // Manifest
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Manifest")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+
+                    HStack {
+                        Toggle("Save clip list", isOn: $viewModel.manifestEnabled)
+                            .toggleStyle(.checkbox)
+                            .foregroundStyle(.white)
+                            .disabled(viewModel.isDownloading)
+                        Spacer()
                     }
                     .padding(8)
                     .background(.white.opacity(0.1))

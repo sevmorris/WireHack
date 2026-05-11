@@ -54,25 +54,34 @@ final class YTDLPService {
 
     /// Streams yt-dlp output line-by-line via `onProgress`. Cancels by terminating
     /// the child process when the surrounding `Task` is cancelled.
+    /// Marker prefix used with yt-dlp's `--print` so we can pluck the resolved
+    /// filepath out of stdout without exposing it to the progress callback.
+    private static let filepathMarker = "WIREHACK_OUT|"
+
+    /// Returns the absolute path of the downloaded file, or `nil` if yt-dlp
+    /// didn't emit a filepath (e.g. an already-downloaded file that skipped
+    /// the move step).
     func downloadMedia(
         url: String,
         format: DownloadFormat,
         downloadFolder: String? = nil,
         outputTemplate: String = "%(title)s.%(ext)s",
         onProgress: @escaping @Sendable (String) -> Void
-    ) async throws {
+    ) async throws -> String? {
         let binary = try resolveBinary()
 
         let destination = downloadFolder
             ?? FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
             ?? NSTemporaryDirectory()
 
+        let marker = Self.filepathMarker
         let process = Process()
         process.executableURL = URL(fileURLWithPath: binary)
         process.arguments = [
             "-f", format.ytDlpFormatArg,
             "-P", destination,
             "-o", outputTemplate,
+            "--print", "after_move:\(marker)%(filepath)s",
             "--no-playlist",
             "--newline",
             url
@@ -86,6 +95,7 @@ final class YTDLPService {
         // Tail recent stderr for the failure message — yt-dlp's actionable error
         // is usually within the last few hundred bytes.
         let stderrTail = StderrTail()
+        let filepathCapture = FilepathCapture()
 
         let stdoutHandle = stdoutPipe.fileHandleForReading
         let stderrHandle = stderrPipe.fileHandleForReading
@@ -95,7 +105,13 @@ final class YTDLPService {
         stdoutHandle.readabilityHandler = { handle in
             let data = handle.availableData
             guard !data.isEmpty else { return }
-            forEachLine(in: data) { onProgress($0) }
+            forEachLine(in: data) { line in
+                if line.hasPrefix(marker) {
+                    filepathCapture.set(String(line.dropFirst(marker.count)))
+                } else {
+                    onProgress(line)
+                }
+            }
         }
         stderrHandle.readabilityHandler = { handle in
             let data = handle.availableData
@@ -133,6 +149,8 @@ final class YTDLPService {
         } onCancel: {
             if process.isRunning { process.terminate() }
         }
+
+        return filepathCapture.get()
     }
 }
 
@@ -142,6 +160,21 @@ private func forEachLine(in data: Data, _ body: (String) -> Void) {
     for raw in chunk.split(whereSeparator: { $0 == "\n" || $0 == "\r" }) {
         let line = String(raw).trimmingCharacters(in: .whitespaces)
         if !line.isEmpty { body(line) }
+    }
+}
+
+private final class FilepathCapture: @unchecked Sendable {
+    private let lock = NSLock()
+    private var path: String?
+
+    func set(_ value: String) {
+        lock.lock(); defer { lock.unlock() }
+        path = value
+    }
+
+    func get() -> String? {
+        lock.lock(); defer { lock.unlock() }
+        return path
     }
 }
 
