@@ -46,7 +46,7 @@ final class ContentViewModel {
 
     var outputTemplate: String {
         if numberingEnabled {
-            return String(format: "%02d - ", currentNumber) + "%(title)s.%(ext)s"
+            return String(format: "%02d ", currentNumber) + "%(title)s.%(ext)s"
         }
         return "%(title)s.%(ext)s"
     }
