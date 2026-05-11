@@ -29,28 +29,6 @@ struct ContentView: View {
                         .disabled(viewModel.isDownloading)
                 }
 
-                // Notes (only when manifest is on)
-                if viewModel.manifestEnabled {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Notes")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.7))
-
-                        TextField("e.g. :30 to :12", text: $viewModel.notes, axis: .vertical)
-                            .lineLimit(1...4)
-                            .textFieldStyle(.plain)
-                            .padding(12)
-                            .background(.white.opacity(0.95))
-                            .foregroundStyle(.black)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(.white.opacity(0.25), lineWidth: 1)
-                            )
-                            .disabled(viewModel.isDownloading)
-                    }
-                }
-
                 // Format Selector
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Format")
@@ -76,6 +54,14 @@ struct ContentView: View {
                             .disabled(viewModel.isDownloading)
 
                         Spacer()
+
+                        Button("Reset") {
+                            viewModel.currentNumber = 1
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.white)
+                        .disabled(viewModel.isDownloading || !viewModel.numberingEnabled || viewModel.currentNumber == 1)
+                        .opacity(viewModel.numberingEnabled ? 1 : 0.5)
 
                         Stepper(value: $viewModel.currentNumber, in: 1...9999) {
                             Text(String(format: "%02d", viewModel.currentNumber))
@@ -107,6 +93,28 @@ struct ContentView: View {
                     .padding(8)
                     .background(.white.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+
+                // Notes (only when manifest is on)
+                if viewModel.manifestEnabled {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Notes")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.7))
+
+                        TextField("e.g. :30 to :12", text: $viewModel.notes, axis: .vertical)
+                            .lineLimit(1...4)
+                            .textFieldStyle(.plain)
+                            .padding(12)
+                            .background(.white.opacity(0.95))
+                            .foregroundStyle(.black)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(.white.opacity(0.25), lineWidth: 1)
+                            )
+                            .disabled(viewModel.isDownloading)
+                    }
                 }
 
                 // Output Selector
