@@ -8,14 +8,41 @@ enum DownloadFormat: String, CaseIterable, Identifiable {
 
     var ytDlpFormatArg: String {
         switch self {
-        case .nativeAudio: return "ba"
+        // Prefer native audio-only streams; fall back to best combined format.
+        case .nativeAudio: return "ba/b"
         case .nativeVideo: return "best"
         }
     }
 }
 
+enum CookiesBrowser: String, CaseIterable, Identifiable {
+    case safari
+    case chrome
+    case firefox
+    case brave
+    case edge
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .safari: return "Safari"
+        case .chrome: return "Chrome"
+        case .firefox: return "Firefox"
+        case .brave: return "Brave"
+        case .edge: return "Edge"
+        }
+    }
+}
+
+struct YTDLPDownloadOptions: Sendable {
+    var cookiesEnabled: Bool = false
+    var cookiesBrowser: CookiesBrowser = .safari
+}
+
 enum YTDLPError: LocalizedError {
     case notFound(searched: [String])
+    case ffmpegNotFound(searched: [String])
     case executionFailed(String)
     case cancelled
 
@@ -23,6 +50,8 @@ enum YTDLPError: LocalizedError {
         switch self {
         case .notFound(let paths):
             return "yt-dlp not found. Looked in: \(paths.joined(separator: ", ")). Install with: brew install yt-dlp"
+        case .ffmpegNotFound(let paths):
+            return "ffmpeg not found. Looked in: \(paths.joined(separator: ", ")). Install with: brew install ffmpeg"
         case .executionFailed(let message):
             return "Download failed: \(message)"
         case .cancelled:
@@ -44,12 +73,62 @@ final class YTDLPService {
         "/usr/bin/yt-dlp"
     ]
 
-    private func resolveBinary() throws -> String {
+    private static let ffmpegCandidatePaths: [String] = [
+        "/opt/homebrew/bin/ffmpeg",
+        "/usr/local/bin/ffmpeg",
+        "/opt/local/bin/ffmpeg",
+        (NSString(string: "~/.local/bin/ffmpeg") as NSString).expandingTildeInPath,
+        "/usr/bin/ffmpeg"
+    ]
+
+    private func resolveBinary(in candidates: [String]) throws -> String {
         let fm = FileManager.default
-        for path in Self.candidatePaths where fm.isExecutableFile(atPath: path) {
+        for path in candidates where fm.isExecutableFile(atPath: path) {
             return path
         }
-        throw YTDLPError.notFound(searched: Self.candidatePaths)
+        throw YTDLPError.notFound(searched: candidates)
+    }
+
+    private func resolveBinary() throws -> String {
+        try resolveBinary(in: Self.candidatePaths)
+    }
+
+    private func resolveFFmpeg() throws -> String {
+        let fm = FileManager.default
+        for path in Self.ffmpegCandidatePaths where fm.isExecutableFile(atPath: path) {
+            return path
+        }
+        throw YTDLPError.ffmpegNotFound(searched: Self.ffmpegCandidatePaths)
+    }
+
+    /// Builds the yt-dlp argument list. Kept separate so flags stay easy to audit.
+    static func buildArguments(
+        url: String,
+        format: DownloadFormat,
+        destination: String,
+        outputTemplate: String,
+        options: YTDLPDownloadOptions
+    ) -> [String] {
+        var args = [
+            "-f", format.ytDlpFormatArg,
+            "-P", destination,
+            "-o", outputTemplate,
+            "--print", "after_move:\(filepathMarker)%(filepath)s",
+            "--no-playlist",
+            "--newline",
+            "--restrict-filenames",
+            "--retries", "10",
+            "--fragment-retries", "10",
+            "-N", "4",
+            "--remote-components", "ejs",
+        ]
+
+        if options.cookiesEnabled {
+            args += ["--cookies-from-browser", options.cookiesBrowser.rawValue]
+        }
+
+        args.append(url)
+        return args
     }
 
     /// Streams yt-dlp output line-by-line via `onProgress`. Cancels by terminating
@@ -66,9 +145,13 @@ final class YTDLPService {
         format: DownloadFormat,
         downloadFolder: String? = nil,
         outputTemplate: String = "%(title)s.%(ext)s",
+        options: YTDLPDownloadOptions = YTDLPDownloadOptions(),
         onProgress: @escaping @Sendable (String) -> Void
     ) async throws -> String? {
         let binary = try resolveBinary()
+        if format == .nativeVideo {
+            _ = try resolveFFmpeg()
+        }
 
         let destination = downloadFolder
             ?? FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
@@ -77,15 +160,13 @@ final class YTDLPService {
         let marker = Self.filepathMarker
         let process = Process()
         process.executableURL = URL(fileURLWithPath: binary)
-        process.arguments = [
-            "-f", format.ytDlpFormatArg,
-            "-P", destination,
-            "-o", outputTemplate,
-            "--print", "after_move:\(marker)%(filepath)s",
-            "--no-playlist",
-            "--newline",
-            url
-        ]
+        process.arguments = Self.buildArguments(
+            url: url,
+            format: format,
+            destination: destination,
+            outputTemplate: outputTemplate,
+            options: options
+        )
 
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
