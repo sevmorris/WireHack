@@ -65,7 +65,11 @@ CURRENT=$(grep -E "CFBundleShortVersionString:" "$YAML" | head -1 | grep -o '[0-
 if [[ "$CURRENT" == "$VERSION" ]]; then
     ok "Already at $VERSION"
 else
-    sed -i '' "s/CFBundleShortVersionString: \"${CURRENT}\"/CFBundleShortVersionString: \"${VERSION}\"/g" "$YAML"
+    # Escape regex metacharacters so pre-release versions like "1.7.0-rc.1"
+    # don't cause sed pattern mismatches.
+    ESC_CURRENT=$(printf '%s' "$CURRENT" | sed 's/[.[\*^$]/\\&/g')
+    ESC_VERSION=$(printf '%s'  "$VERSION" | sed 's/[.[\*^$]/\\&/g')
+    sed -i '' "s/CFBundleShortVersionString: \"${ESC_CURRENT}\"/CFBundleShortVersionString: \"${ESC_VERSION}\"/g" "$YAML"
     # Build number: zero-padded MMMmmpp so it stays monotonic across digit
     # boundaries (e.g. 1.5.10 → 10510 < 1.6.0 → 10600).
     IFS=. read -r MAJ MIN PATCH <<< "$VERSION"
@@ -96,6 +100,7 @@ xcodebuild \
     -configuration Release \
     -derivedDataPath "$DERIVED_DATA" \
     -quiet
+[[ -d "$APP_PATH" ]] || fail "Build did not produce $APP_PATH"
 ok "Build complete"
 
 # ── Sign ──────────────────────────────────────────────────────────────────────
@@ -105,6 +110,7 @@ ENTITLEMENTS="$PROJECT_DIR/WireHack/WireHack.entitlements"
 
 # Sign the app bundle with Hardened Runtime
 codesign --force --options runtime --entitlements "$ENTITLEMENTS" --sign "$IDENTITY" "$APP_PATH"
+codesign --verify --deep --strict --verbose=2 "$APP_PATH" 2>&1 | tail -3
 ok "Codesigning complete"
 
 # ── Verify app version ────────────────────────────────────────────────────────
@@ -165,12 +171,13 @@ ok "Pushed $TAG to $REMOTE/$BRANCH"
 
 # ── GitHub release ────────────────────────────────────────────────────────────
 step "Creating GitHub release"
-PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${TAG}$" | head -1)
+PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${TAG}$" | head -1 || true)
 if [[ -n "$PREV_TAG" ]]; then
     CHANGES=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" | grep -v "^- Bump version" || true)
 else
     CHANGES=$(git log --pretty=format:"- %s" | grep -v "^- Bump version" || true)
 fi
+[[ -n "$CHANGES" ]] || CHANGES="- Initial release"
 RELEASE_NOTES="### Changes
 ${CHANGES}"
 
@@ -180,13 +187,29 @@ gh release create "$TAG" "$DMG" \
     --notes "$RELEASE_NOTES"
 ok "Release published"
 
+# ── Remove old releases (keep the ${KEEP_RELEASES} most recent) ───────────────
+KEEP_RELEASES=5
+step "Removing old releases (keeping ${KEEP_RELEASES} most recent)"
+OLD_TAGS=$(gh release list --repo "$REPO" --limit 100 --json tagName \
+    --jq '.[].tagName' | tail -n +$((KEEP_RELEASES + 1)) || true)
+if [[ -z "$OLD_TAGS" ]]; then
+    ok "No old releases to remove"
+else
+    while IFS= read -r old_tag; do
+        gh release delete "$old_tag" --repo "$REPO" --yes --cleanup-tag 2>/dev/null || true
+        git tag -d "$old_tag" 2>/dev/null || true
+        ok "Removed $old_tag"
+    done <<< "$OLD_TAGS"
+fi
+
 # ── Clean up temp files ───────────────────────────────────────────────────────
 step "Cleaning up"
 rm -rf "$STAGING" "$MOUNT" "$DERIVED_DATA"
-# Keep DMG in project root for easy access if needed, or just delete it
-# rm -f "$DMG"
+rm -f "$DMG"
 ok "Temp files removed"
 
+# ── Open release page ─────────────────────────────────────────────────────────
 RELEASE_URL="https://github.com/${REPO}/releases/tag/${TAG}"
 echo "\n✓ WireHack $TAG released successfully."
 echo "  $RELEASE_URL"
+open "$RELEASE_URL"
