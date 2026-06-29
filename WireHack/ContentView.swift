@@ -41,40 +41,6 @@ struct ContentView: View {
                     )
                 }
 
-                // Browser cookies — unlocks age-restricted / members-only content
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Access")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.7))
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Use browser cookies", isOn: $viewModel.cookiesEnabled)
-                            .toggleStyle(.checkbox)
-                            .foregroundStyle(.white)
-                            .disabled(viewModel.isDownloading)
-
-                        if viewModel.cookiesEnabled {
-                            HStack {
-                                Text("Browser")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.white.opacity(0.85))
-                                Spacer()
-                                Picker("Browser", selection: $viewModel.cookiesBrowser) {
-                                    ForEach(CookiesBrowser.allCases) { browser in
-                                        Text(browser.displayName).tag(browser)
-                                    }
-                                }
-                                .labelsHidden()
-                                .pickerStyle(.menu)
-                                .disabled(viewModel.isDownloading)
-                            }
-                        }
-                    }
-                    .padding(8)
-                    .background(.white.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-
                 // Numbering
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Numbering")

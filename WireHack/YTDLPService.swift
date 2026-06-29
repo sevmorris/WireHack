@@ -15,31 +15,6 @@ enum DownloadFormat: String, CaseIterable, Identifiable {
     }
 }
 
-enum CookiesBrowser: String, CaseIterable, Identifiable {
-    case safari
-    case chrome
-    case firefox
-    case brave
-    case edge
-
-    var id: String { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .safari: return "Safari"
-        case .chrome: return "Chrome"
-        case .firefox: return "Firefox"
-        case .brave: return "Brave"
-        case .edge: return "Edge"
-        }
-    }
-}
-
-struct YTDLPDownloadOptions: Sendable {
-    var cookiesEnabled: Bool = false
-    var cookiesBrowser: CookiesBrowser = .safari
-}
-
 enum YTDLPError: LocalizedError {
     case notFound(searched: [String])
     case ffmpegNotFound(searched: [String])
@@ -106,8 +81,7 @@ final class YTDLPService {
         url: String,
         format: DownloadFormat,
         destination: String,
-        outputTemplate: String,
-        options: YTDLPDownloadOptions
+        outputTemplate: String
     ) -> [String] {
         var args = [
             "-f", format.ytDlpFormatArg,
@@ -122,10 +96,6 @@ final class YTDLPService {
             "-N", "4",
             "--remote-components", "ejs",
         ]
-
-        if options.cookiesEnabled {
-            args += ["--cookies-from-browser", options.cookiesBrowser.rawValue]
-        }
 
         args.append(url)
         return args
@@ -145,7 +115,6 @@ final class YTDLPService {
         format: DownloadFormat,
         downloadFolder: String? = nil,
         outputTemplate: String = "%(title)s.%(ext)s",
-        options: YTDLPDownloadOptions = YTDLPDownloadOptions(),
         onProgress: @escaping @Sendable (String) -> Void
     ) async throws -> String? {
         let binary = try resolveBinary()
@@ -164,8 +133,7 @@ final class YTDLPService {
             url: url,
             format: format,
             destination: destination,
-            outputTemplate: outputTemplate,
-            options: options
+            outputTemplate: outputTemplate
         )
 
         let stdoutPipe = Pipe()

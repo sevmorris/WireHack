@@ -27,14 +27,6 @@ final class ContentViewModel {
         didSet { UserDefaults.standard.set(manifestEnabled, forKey: Self.manifestKey) }
     }
 
-    var cookiesEnabled: Bool {
-        didSet { UserDefaults.standard.set(cookiesEnabled, forKey: Self.cookiesKey) }
-    }
-
-    var cookiesBrowser: CookiesBrowser {
-        didSet { UserDefaults.standard.set(cookiesBrowser.rawValue, forKey: Self.cookiesBrowserKey) }
-    }
-
     /// Per-clip free-text — not persisted, cleared after each successful download.
     var notes: String = ""
 
@@ -42,8 +34,6 @@ final class ContentViewModel {
     private static let numberingKey = "numberingEnabled"
     private static let currentNumberKey = "currentNumber"
     private static let manifestKey = "manifestEnabled"
-    private static let cookiesKey = "cookiesEnabled"
-    private static let cookiesBrowserKey = "cookiesBrowser"
     private var downloadTask: Task<Void, Never>?
 
     init() {
@@ -52,20 +42,6 @@ final class ContentViewModel {
         let savedNumber = UserDefaults.standard.integer(forKey: Self.currentNumberKey)
         currentNumber = savedNumber > 0 ? savedNumber : 1
         manifestEnabled = UserDefaults.standard.bool(forKey: Self.manifestKey)
-        cookiesEnabled = UserDefaults.standard.bool(forKey: Self.cookiesKey)
-        if let raw = UserDefaults.standard.string(forKey: Self.cookiesBrowserKey),
-           let browser = CookiesBrowser(rawValue: raw) {
-            cookiesBrowser = browser
-        } else {
-            cookiesBrowser = .safari
-        }
-    }
-
-    var downloadOptions: YTDLPDownloadOptions {
-        YTDLPDownloadOptions(
-            cookiesEnabled: cookiesEnabled,
-            cookiesBrowser: cookiesBrowser
-        )
     }
 
     var outputTemplate: String {
@@ -167,7 +143,6 @@ final class ContentViewModel {
         let wasNumbering = numberingEnabled
         let manifestOn = manifestEnabled
         let notesSnapshot = notes
-        let options = downloadOptions
 
         downloadTask = Task {
             defer {
@@ -179,8 +154,7 @@ final class ContentViewModel {
                     url: trimmed,
                     format: format,
                     downloadFolder: destPath,
-                    outputTemplate: template,
-                    options: options
+                    outputTemplate: template
                 ) { [weak self] line in
                     Task { @MainActor in self?.status = line }
                 }
