@@ -136,18 +136,26 @@ struct ContentView: View {
                             .font(.caption)
                             .foregroundStyle(.white.opacity(0.7))
 
-                        TextField("e.g. :30 to :12", text: $viewModel.notes, axis: .vertical)
-                            .lineLimit(1...4)
-                            .textFieldStyle(.plain)
-                            .padding(12)
-                            .background(.white.opacity(0.95))
-                            .foregroundStyle(.black)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(.white.opacity(0.25), lineWidth: 1)
-                            )
-                            .disabled(viewModel.isDownloading)
+                        ZStack(alignment: .topLeading) {
+                            if viewModel.notes.isEmpty {
+                                Text("e.g. :30 to :12")
+                                    .foregroundStyle(.black.opacity(0.3))
+                                    .padding(EdgeInsets(top: 9, leading: 6, bottom: 0, trailing: 0))
+                                    .allowsHitTesting(false)
+                            }
+                            TextEditor(text: $viewModel.notes)
+                                .scrollContentBackground(.hidden)
+                                .foregroundStyle(.black)
+                                .frame(minHeight: 60, maxHeight: 100)
+                                .disabled(viewModel.isDownloading)
+                        }
+                        .padding(8)
+                        .background(.white.opacity(0.95))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(.white.opacity(0.25), lineWidth: 1)
+                        )
                     }
                 }
 
