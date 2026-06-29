@@ -98,7 +98,7 @@ struct ContentView: View {
                         .opacity(viewModel.numberingEnabled ? 1 : 0.5)
 
                         Stepper(value: $viewModel.currentNumber, in: 1...9999) {
-                            Text(String(format: "%02d", viewModel.currentNumber))
+                            Text("\(viewModel.currentNumber)")
                                 .font(.subheadline.monospacedDigit())
                                 .foregroundStyle(.white)
                                 .frame(minWidth: 28, alignment: .trailing)
