@@ -94,7 +94,7 @@ final class YTDLPService {
             "--retries", "10",
             "--fragment-retries", "10",
             "-N", "4",
-            "--remote-components", "ejs",
+            "--remote-components", "ejs:github",
         ]
 
         args.append(url)
